@@ -5,6 +5,8 @@ from database_setup import Catalog, Base, RecipeItem, User
 from flask import session as login_session
 import random
 import string
+
+# Imports for this step
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.client import FlowExchangeError
 import httplib2
@@ -28,6 +30,13 @@ APPLICATION_NAME = "Catalog App"
 # Create anti-forgery state token
 @app.route('/login')
 def showLogin():
+    print(">>> showLogin...")
+    try:
+        # Python 2
+        xrange
+    except NameError:
+        # Python 3, xrange is now named range
+        xrange = range
     state = ''.join(random.choice(string.ascii_uppercase + string.digits)
                     for x in xrange(32))
     login_session['state'] = state
@@ -54,9 +63,10 @@ def gconnect():
         oauth_flow.redirect_uri = 'postmessage'
         print("oauth_flow type: {}".format(type(oauth_flow)))
         attrs = vars(oauth_flow)
-        print ', '.join("%s: %s\n" % item for item in attrs.items())
+        print(', '.join("%s: %s\n" % item for item in attrs.items()))
         print("code: {}".format(code))
         credentials = oauth_flow.step2_exchange(code)
+        print("Credentials done...")
     except FlowExchangeError:
         response = make_response(
             json.dumps('Failed to upgrade the authorization code.'), 401)
@@ -87,7 +97,7 @@ def gconnect():
     if result['issued_to'] != CLIENT_ID:
         response = make_response(
             json.dumps("Token's client ID does not match app's."), 401)
-        print "Token's client ID does not match app's."
+        print("Token's client ID does not match app's.")
         response.headers['Content-Type'] = 'application/json'
         return response
 
@@ -100,6 +110,8 @@ def gconnect():
         return response
 
     # Store the access token in the session for later use.
+    print("access_token: {}".format(credentials.access_token))
+    print("gplus_id: {}".format(gplus_id))
     login_session['access_token'] = credentials.access_token
     login_session['gplus_id'] = gplus_id
 
@@ -129,11 +141,12 @@ def gconnect():
     output += ' "style = "width: 300px; height: 300px;border-radius: 150px;'\
         '-webkit-border-radius: 150px;-moz-border-radius: 150px;"> '
     flash("you are now logged in as %s" % login_session['username'])
-    print "done!"
+    print("done!")
     return output
 
 
 def createUser(login_session):
+    print(">>> createUser...")
     newUser = User(name=login_session['username'],
                    email=login_session['email'],
                    picture=login_session['picture'])
@@ -144,11 +157,13 @@ def createUser(login_session):
 
 
 def getUserInfo(user_id):
+    print(">>> getUserInfo...")
     user = session.query(User).filter_by(id=user_id).one()
     return user
 
 
 def getUserID(email):
+    print(">>> getUserID...")
     try:
         user = session.query(User).filter_by(email=email).one()
         return user.id
@@ -159,8 +174,14 @@ def getUserID(email):
 # DISCONNECT - Revoke a current user's token and reset their login_session
 @app.route('/gdisconnect')
 def gdisconnect():
+    print(">>> gdisconnect...")
     # Only disconnect a connected user.
-    access_token = login_session.get('access_token')
+    # access_token = login_session.get('access_token')
+    # print("access_token: {}".format(access_token))
+    access_token = login_session['access_token']
+    print("access_token: {}".format(login_session['access_token']))
+    # login_session.clear()
+
     if access_token is None:
         response = make_response(
             json.dumps('Current user not connected.'), 401)
@@ -184,6 +205,7 @@ def gdisconnect():
 @app.route('/')
 @app.route('/catalog/')
 def showCatalog():
+    print(">>> showCatalog...")
     catalogItems = session.query(Catalog).order_by(asc(Catalog.name))
     return render_template('catalog.html', catalogs=catalogItems, APP_NAME=APPLICATION_NAME)
 
